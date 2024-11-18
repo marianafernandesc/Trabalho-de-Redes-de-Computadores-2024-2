@@ -59,6 +59,11 @@ parser.add_argument('--cong',
 # Expt parameters
 args = parser.parse_args()
 
+
+def cleanup_mininet():
+    os.system("sudo mn -c")
+    os.system("sudo pkill -f 'iperf|python'")
+
 class BBTopo(Topo):
     "Simple topology for bufferbloat experiment."
 
@@ -71,8 +76,8 @@ class BBTopo(Topo):
         switch = self.addSwitch('s0')
 
         # TODO: Add links with appropriate characteristics
-        self.addLink(h1, switch, bw=args.bw_host, delay=args.delay)
-        self.addLink(switch, h2, bw=args.bw_net, delay=args.delay, max_queue_size=args.maxq)
+        self.addLink(h1, switch, intfName1='h1-eth0', intfName2='s0-eth1', bw=args.bw_host, delay=f"{args.delay}ms", max_queue_size=args.maxq)
+        self.addLink(switch, h2, intfName1='h2-eth0', intfName2='s0-eth2', bw=args.bw_net, delay=f"{args.delay}ms", max_queue_size=args.maxq)
 # Simple wrappers around monitoring utilities.  You are welcome to
 # contribute neatly written (using classes) monitoring scripts for
 # Mininet!
@@ -130,6 +135,7 @@ def fetch_webpage(net, times=3):
 
 
 def bufferbloat():
+    cleanup_mininet()
     if not os.path.exists(args.dir):
         os.makedirs(args.dir)
     os.system("sysctl -w net.ipv4.tcp_congestion_control=%s" % args.cong)
@@ -195,6 +201,7 @@ def bufferbloat():
     for proc in iperf_procs + webserver_procs:
         proc.terminate()
     net.stop()
+    cleanup_mininet() # Ensure cleanup after stopping Mininet
     # Ensure that all processes you create within Mininet are killed.
     # Sometimes they require manual killing.
     Popen("pgrep -f webserver.py | xargs kill -9", shell=True).wait()
